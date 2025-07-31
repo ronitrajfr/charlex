@@ -14,16 +14,16 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+enum Visibility {
+    Public
+    Private
+}
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
+enum MessageRole {
+  USER
+  ASSISTANT
+  TOOL
+  SYSTEM
 }
 
 // Necessary for Next auth
@@ -62,7 +62,7 @@ model User {
     image         String?
     accounts      Account[]
     sessions      Session[]
-    posts         Post[]
+    threads      Thread[]
 }
 
 model VerificationToken {
@@ -72,3 +72,45 @@ model VerificationToken {
 
     @@unique([identifier, token])
 }
+
+
+model Thread {
+    id            String     @id @default(cuid())
+    title         String     @default("New Chat")
+    updatedAt     DateTime   @updatedAt
+    createdAt     DateTime   @default(now())
+    createdBy     User       @relation(fields: [userId], references: [id])
+    userId        String
+    pinned        Boolean    @default(false)
+    visibility    Visibility  @default(Private)    
+    messages      Message[]
+    streams       Stream[]
+
+    @@index([userId])
+    @@index([userId, updatedAt])
+    @@index([visibility])
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  threadId      String
+  role        MessageRole
+  content     Json        
+  attachments Json        @default("[]") // File attachments
+  createdAt   DateTime    @default(now())
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([threadId, createdAt])
+}
+
+model Stream {
+  id        String   @id @default(cuid())
+  threadId    String
+  createdAt DateTime @default(now())
+  isActive  Boolean  @default(true)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  @@index([threadId])
+  @@index([threadId, isActive])
+}
+
